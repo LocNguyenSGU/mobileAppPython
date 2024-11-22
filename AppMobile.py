@@ -1,20 +1,16 @@
-from kivy.graphics import Rotate
-from kivy.multistroke import rotate_by
-from kivy.uix import camera
-from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.image import Image
-from kivy.uix.widget import Widget
-from kivymd.app import MDApp
-from kivy.lang import Builder
-from kivy.uix.screenmanager import Screen
-from kivy.uix.camera import Camera
-from kivy.core.window import Window
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
+import os
+from datetime import datetime
 
-# Đặt kích thước cửa sổ cố định
-# Window.size = (350, 600)
-print(f"Window size: {Window.size}")
+from kivy.uix.button import Button
+from kivy.uix.camera import Camera
+from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.screenmanager import Screen, ScreenManager
+from kivy.lang import Builder
+from kivymd.app import MDApp
+from kivy.core.window import Window
+
+# Set window size
+Window.size = (350, 600)
 
 class MenuScreen(Screen):
     pass
@@ -23,35 +19,71 @@ class SecondScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.camera = None
+        self.capture_folder = "captured_images"  # Thư mục lưu ảnh
 
     def on_enter(self):
-        """Khi màn hình SecondScreen xuất hiện, khởi động camera"""
+        """Start the camera when the screen is entered"""
         self.start_camera()
 
     def on_leave(self):
-        """Tắt camera khi chuyển sang màn hình khác"""
+        """Stop the camera when switching to another screen"""
         if self.camera:
-            self.camera.play = False
+            self.camera.play = False  # Dừng camera khi rời khỏi màn hình
+            self.remove_widget(self.camera)  # Xóa widget camera để giải phóng tài nguyên
 
     def start_camera(self):
-        """Khởi động camera"""
+        """Start the camera"""
         if not self.camera:
-            # Tạo camera widget
+            # Create a Camera widget
             self.camera = Camera(play=True, allow_stretch=True, keep_ratio=False)
-            self.camera.size_hint = (1, 1)  # Camera chiếm toàn màn hình
+            self.camera.size_hint = (1, 1)  # Camera fills the whole screen
             self.camera.pos_hint = {'x': 0, 'y': 0}
-
-            # Thêm camera vào màn hình
             self.add_widget(self.camera)
 
+            # Add buttons to the layout
+            self.add_buttons()
+
+    def add_buttons(self):
+        """Add capture and cancel buttons to the layout"""
+        # Capture button
+        capture_button = Button(
+            text="Capture",
+            size_hint=(None, None),
+            size=(150, 50),
+            pos_hint={"center_x": 0.5, "y": 0.05},
+            on_press=self.capture
+        )
+        self.add_widget(capture_button)
+
+        # Cancel button
+        cancel_button = Button(
+            text="Cancel",
+            size_hint=(None, None),
+            size=(150, 50),
+            pos_hint={"center_x": 0.5, "y": 0.15},
+            on_press=self.switch_to_menu_screen
+        )
+        self.add_widget(cancel_button)
 
     def capture(self, instance):
-        """Chụp ảnh (placeholder)"""
+        """Capture button pressed, save image to file"""
         print("Capture button pressed")
 
+        # Ensure the capture folder exists
+        if not os.path.exists(self.capture_folder):
+            os.makedirs(self.capture_folder)
+
+        # Generate a filename with the current date and time
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{self.capture_folder}/capture_{timestamp}.png"
+
+        # Capture the image and save it to the file
+        self.camera.export_to_png(filename)
+
+        print(f"Image saved to {filename}")
 
     def switch_to_menu_screen(self, instance):
-        """Quay lại màn hình đầu tiên"""
+        """Switch to the menu screen"""
         self.manager.current = "MenuScreen"
 
 
@@ -60,7 +92,7 @@ class ThirdScreen(Screen):
         super().__init__(**kwargs)
 
     def on_leave(self):
-        """Làm sạch khi chuyển sang màn hình khác"""
+        """Clean up when leaving the screen"""
         pass
 
 
@@ -71,18 +103,17 @@ class AppMobile(MDApp):
         screen = Builder.load_string(screen_helper)
         return screen
 
-
     def switch_to_second_screen(self):
-        """Chuyển sang màn hình thứ hai"""
+        """Switch to the second screen"""
         self.root.current = "SecondScreen"
         self.root.get_screen("SecondScreen").start_camera()
 
     def switch_to_menu_screen(self):
-        """Quay lại màn hình đầu tiên"""
+        """Switch back to the menu screen"""
         self.root.current = "MenuScreen"
 
-
     def switch_to_third_screen(self):
+        """Switch to the third screen"""
         self.root.current = "ThirdScreen"
 
 
@@ -99,36 +130,32 @@ ScreenManager:
     BoxLayout:
         orientation: 'vertical'
 
-        # BoxLayout chứa ảnh làm nền (có thể tắt ảnh để debug)
         BoxLayout:
             size_hint_y: None
-            height: 220  # Tùy chỉnh chiều cao
+            height: 220
             width: 350
 
-            # Hình ảnh làm nền
             Image:
                 source: './imageApp/img.png'
-                allow_stretch: True  # Cho phép phóng to/thu nhỏ
-                keep_ratio: False  # Không giữ tỷ lệ hình ảnh
+                allow_stretch: True
+                keep_ratio: False
                 size_hint: None, None
-                size: self.parent.size  # Đảm bảo ảnh bao phủ hết BoxLayout
+                size: self.parent.size
 
-            # AnchorLayout để căn chỉnh văn bản bên trên ảnh
             AnchorLayout:
                 anchor_x: 'left'
                 anchor_y: 'top'
                 size_hint: None, None
-                width: self.parent.width # Đảm bảo AnchorLayout có chiều rộng như BoxLayout
+                width: self.parent.width
                 height: self.parent.height
 
                 BoxLayout:
                     orientation: 'vertical'
                     spacing: 10
                     size_hint_y: None
-                    height: 120  # Đảm bảo chiều cao của BoxLayout đủ để chứa MDLabel
+                    height: 120
                     halign: 'left'
 
-                    # MDLabel đầu tiên, căn trái
                     MDLabel:
                         text: 'Hi, plant lover!'
                         halign: 'left'
@@ -136,30 +163,25 @@ ScreenManager:
                         size_hint_x: None
                         width: self.parent.width * 0.9
                         text_size: self.size
-                        text_color: 0, 0, 0, 1  # Màu chữ den
+                        text_color: 0, 0, 0, 1
                         font_style: 'Caption'
-                        pos_hint: {"center_x": -0.5, "center_y": 1}
 
-                    # MDLabel thứ hai, căn trái
                     MDLabel:
                         text: 'Good morning'
                         halign: 'left'
                         theme_text_color: 'Custom'
-                        text_color: 0, 0, 0, 1  # Màu chữ den
+                        text_color: 0, 0, 0, 1
                         font_style: 'H5'
-                        font_name: "Roboto-Bold"  # Font chữ dày
+                        font_name: "Roboto-Bold"
                         size_hint_x: None
                         width: self.parent.width * 0.9
                         text_size: self.size
                         pos_hint: {"center_x": -0.5, "center_y": 1}
 
-
-        # MDLabel thứ ba nằm dưới
         MDLabel:
             text: 'Hello world'
             halign: 'center'
 
-        # MDBottomAppBar để tạo thanh công cụ dưới
         MDBottomAppBar:
             MDTopAppBar:
                 left_action_items: [['home', lambda x: app.switch_to_menu_screen()]]
@@ -169,19 +191,17 @@ ScreenManager:
                 icon: 'camera'
                 text_color: 1, 0, 0, 1
                 on_action_button: app.switch_to_second_screen()
-                
+
 <SecondScreen>:
     FloatLayout:
-        # Camera chiếm toàn bộ màn hình
         Camera:
             id: camera_widget
             play: True
-            allow_stretch: True  # Cho phép camera phóng to
-            keep_ratio: False    # Không giữ tỷ lệ gốc
+            allow_stretch: True
+            keep_ratio: False
             size_hint: 1, 1
             pos_hint: {'x': 0, 'y': 0}
 
-        # Nút chụp ảnh
         Button:
             text: "Capture"
             size_hint: None, None
@@ -189,7 +209,6 @@ ScreenManager:
             pos_hint: {"center_x": 0.5, "y": 0.05}
             on_press: root.capture(self)
 
-        # Nút hủy
         Button:
             text: "Cancel"
             size_hint: None, None
@@ -200,7 +219,6 @@ ScreenManager:
 <ThirdScreen>:
     BoxLayout:
         orientation: 'vertical'
-        # MDBottomAppBar để tạo thanh công cụ dưới
         MDBottomAppBar:
             MDTopAppBar:
                 left_action_items: [['home', lambda x: app.switch_to_menu_screen()]]
@@ -210,6 +228,6 @@ ScreenManager:
                 icon: 'camera'
                 text_color: 1, 0, 0, 1
                 on_action_button: app.switch_to_second_screen()
-
 """
+
 AppMobile().run()
