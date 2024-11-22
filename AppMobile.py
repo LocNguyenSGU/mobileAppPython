@@ -13,7 +13,8 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 
 # Đặt kích thước cửa sổ cố định
-Window.size = (350, 600)
+# Window.size = (350, 600)
+print(f"Window size: {Window.size}")
 
 class MenuScreen(Screen):
     pass
@@ -23,6 +24,10 @@ class SecondScreen(Screen):
         super().__init__(**kwargs)
         self.camera = None
 
+    def on_enter(self):
+        """Khi màn hình SecondScreen xuất hiện, khởi động camera"""
+        self.start_camera()
+
     def on_leave(self):
         """Tắt camera khi chuyển sang màn hình khác"""
         if self.camera:
@@ -31,40 +36,19 @@ class SecondScreen(Screen):
     def start_camera(self):
         """Khởi động camera"""
         if not self.camera:
-            # Tạo một widget để chứa camera
-            self.camera = Camera(play=True)
-            self.camera.texture = None
-            self.camera.size = (self.width, self.height - 100)  # Chiếm toàn bộ màn hình trừ 100px dưới cùng
-            self.camera.pos = (0, 0)  # Đặt camera ở góc trên bên trái
+            # Tạo camera widget
+            self.camera = Camera(play=True, allow_stretch=True, keep_ratio=False)
+            self.camera.size_hint = (1, 1)  # Camera chiếm toàn màn hình
+            self.camera.pos_hint = {'x': 0, 'y': 0}
 
-            # Tạo FloatLayout để chứa camera và các nút
-            camera_layout = FloatLayout()  # Sử dụng FloatLayout để dễ dàng kiểm soát vị trí các phần tử
+            # Thêm camera vào màn hình
+            self.add_widget(self.camera)
 
-            # Thêm camera vào layout
-            camera_layout.add_widget(self.camera)
-
-            # Thêm nút Chụp
-            capture_button = Button(text="Capture", size_hint=(None, None), height=50,
-                                    size=(200, 50), pos_hint={'center_x': 0.5, 'y': 0.05})
-            capture_button.bind(on_press=self.capture)
-            camera_layout.add_widget(capture_button)
-
-            # Thêm nút Hủy
-            cancel_button = Button(text="Cancel", size_hint=(None, None), height=50,
-                                   size=(200, 50), pos_hint={'center_x': 0.5, 'y': 0.0})
-            cancel_button.bind(on_press=self.switch_to_menu_screen)
-            camera_layout.add_widget(cancel_button)
-
-            # Thêm BoxLayout chứa camera vào SecondScreen
-            self.clear_widgets()
-            self.add_widget(camera_layout)
 
     def capture(self, instance):
-        """Chụp ảnh và hiển thị"""
-        if self.camera:
-            texture = self.camera.texture
-            image = Image(texture=texture)
-            self.add_widget(image)
+        """Chụp ảnh (placeholder)"""
+        print("Capture button pressed")
+
 
     def switch_to_menu_screen(self, instance):
         """Quay lại màn hình đầu tiên"""
@@ -185,15 +169,33 @@ ScreenManager:
                 icon: 'camera'
                 text_color: 1, 0, 0, 1
                 on_action_button: app.switch_to_second_screen()
-
-
+                
 <SecondScreen>:
-    BoxLayout:
-        orientation: 'vertical'
-        padding: 10
-        spacing: 10
+    FloatLayout:
+        # Camera chiếm toàn bộ màn hình
+        Camera:
+            id: camera_widget
+            play: True
+            allow_stretch: True  # Cho phép camera phóng to
+            keep_ratio: False    # Không giữ tỷ lệ gốc
+            size_hint: 1, 1
+            pos_hint: {'x': 0, 'y': 0}
 
-        # Camera sẽ được thêm vào ở đây thông qua phương thức start_camera()
+        # Nút chụp ảnh
+        Button:
+            text: "Capture"
+            size_hint: None, None
+            size: 150, 50
+            pos_hint: {"center_x": 0.5, "y": 0.05}
+            on_press: root.capture(self)
+
+        # Nút hủy
+        Button:
+            text: "Cancel"
+            size_hint: None, None
+            size: 150, 50
+            pos_hint: {"center_x": 0.5, "y": 0.15}
+            on_press: root.switch_to_menu_screen(self)
 
 <ThirdScreen>:
     BoxLayout:
