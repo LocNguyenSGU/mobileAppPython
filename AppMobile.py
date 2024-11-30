@@ -1,11 +1,15 @@
 import os
 from datetime import datetime
 
+from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.camera import Camera
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.image import Image
+from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen, ScreenManager
 from kivy.lang import Builder
+from kivy.uix.widget import Widget
 from kivymd.app import MDApp
 from kivy.core.window import Window
 
@@ -74,7 +78,7 @@ class SecondScreen(Screen):
             os.makedirs(self.capture_folder)
 
         # Generate a filename with the current date and time
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         filename = f"{self.capture_folder}/capture_{timestamp}.png"
 
         # Capture the image and save it to the file
@@ -86,14 +90,114 @@ class SecondScreen(Screen):
         """Switch to the menu screen"""
         self.manager.current = "MenuScreen"
 
-
 class ThirdScreen(Screen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def on_enter(self):
+        """Load history of captured images when entering the screen"""
+        self.load_history()
 
-    def on_leave(self):
-        """Clean up when leaving the screen"""
-        pass
+    def load_history(self):
+        """Display history of images grouped by date"""
+        folder = "captured_images"
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+
+        # Clear previous history
+        grid = self.ids.history_grid
+        grid.clear_widgets()
+
+        # Group images by date
+        images_by_date = {}
+        for filename in os.listdir(folder):
+            if filename.endswith(".png"):
+                timestamp = filename.split("_")[1].replace(".png", "")
+                date = datetime.strptime(timestamp, "%Y%m%d%H%M%S").strftime("%Y-%m-%d")
+                if date not in images_by_date:
+                    images_by_date[date] = []
+                images_by_date[date].append(os.path.join(folder, filename))
+
+            # Display images grouped by date
+        for date, images in sorted(images_by_date.items(), reverse=True):
+            # Add a label for the date
+            date_label = Label(
+                text=f"[b]{date}[/b]",
+                markup=True,
+                size_hint_y=None,
+                height=30,
+                halign="left",
+                valign="middle",
+                color = (0, 0, 0, 1)
+            )
+            date_label.bind(size=date_label.setter('text_size'))
+            grid.add_widget(date_label)
+
+            # Add images in rows of 3
+            for i in range(0, len(images), 3):
+                row = BoxLayout(orientation="horizontal", size_hint_y=None, height=150, spacing=5)
+                for img_path in images[i:i + 3]:
+                    btn = Button(
+                        size_hint=(1, 1),
+                        background_normal=img_path,
+                        background_down=img_path,
+                        on_press=lambda instance, path=img_path: self.show_details(path),
+                    )
+                    row.add_widget(btn)
+                # Fill remaining spaces with empty widgets if the row has fewer than 3 items
+                while len(row.children) < 3:
+                    row.add_widget(Widget(size_hint=(1, 1)))
+                grid.add_widget(row)
+
+    def show_details(self, file_path):
+        """Display details of the selected image"""
+        timestamp = os.path.basename(file_path).split("_")[1].replace(".png", "")
+        date_time = datetime.strptime(timestamp, "%Y%m%d%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
+
+        detail_screen = DetailScreen(file_path, date_time)
+        self.manager.add_widget(detail_screen)
+        self.manager.current = detail_screen.name
+
+class DetailScreen(Screen):
+    def __init__(self, file_path, date_time, **kwargs):
+        super().__init__(**kwargs)
+        self.name = "DetailScreen"
+        self.file_path = file_path
+        self.date_time = date_time
+
+    def on_enter(self):
+        """Build detail view when entering the screen"""
+        self.build_ui()
+
+    def build_ui(self):
+        self.clear_widgets()
+        layout = BoxLayout(orientation="vertical")
+
+        # Add the image
+        img = Image(source=self.file_path, allow_stretch=True, keep_ratio=True)
+        layout.add_widget(img)
+
+        # Add details
+        details = f"Date & Time: {self.date_time}"
+        label = Label(
+            text=details,
+            halign="center",
+            valign="middle",
+            size_hint=(1, None),
+            height=50,
+            font_size=16,
+            color=(0, 0, 0, 1)
+        )
+        layout.add_widget(label)
+
+        # Add a back button
+        back_button = Button(text="Back", size_hint=(1, None), height=50, on_press=self.go_back)
+        layout.add_widget(back_button)
+
+        self.add_widget(layout)
+
+    def go_back(self, instance):
+        """Go back to ThirdScreen"""
+        self.manager.current = "ThirdScreen"
+        self.manager.remove_widget(self)
+
 
 
 class AppMobile(MDApp):
@@ -115,6 +219,12 @@ class AppMobile(MDApp):
     def switch_to_third_screen(self):
         """Switch to the third screen"""
         self.root.current = "ThirdScreen"
+
+    def switch_to_detail_screen(self, file_path, date_time):
+        """Switch to the detail screen with the selected image"""
+        detail_screen = DetailScreen(file_path, date_time)
+        self.root.add_widget(detail_screen)
+        self.root.current = detail_screen.name
 
 
 screen_helper = """
@@ -219,6 +329,16 @@ ScreenManager:
 <ThirdScreen>:
     BoxLayout:
         orientation: 'vertical'
+        ScrollView:
+            do_scroll_x: False
+            do_scroll_y: True
+            
+            GridLayout:
+                id: history_grid
+                cols: 1
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: [5, 5] 
         MDBottomAppBar:
             MDTopAppBar:
                 left_action_items: [['home', lambda x: app.switch_to_menu_screen()]]
