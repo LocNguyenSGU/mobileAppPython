@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-
+from PIL import Image as PILImage
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.camera import Camera
@@ -12,6 +12,7 @@ from kivy.lang import Builder
 from kivy.uix.widget import Widget
 from kivymd.app import MDApp
 from kivy.core.window import Window
+
 
 # Set window size
 Window.size = (350, 600)
@@ -83,8 +84,16 @@ class SecondScreen(Screen):
 
         # Capture the image and save it to the file
         self.camera.export_to_png(filename)
-
         print(f"Image saved to {filename}")
+
+        # Open the captured image and rotate it
+        img = PILImage.open(filename)
+        img = img.rotate(270, expand=True)  # Rotate 270 degrees
+
+        # Save the rotated image back to the same file
+        img.save(filename)
+        print(f"Image rotated and saved to {filename}")
+
 
     def switch_to_menu_screen(self, instance):
         """Switch to the menu screen"""
